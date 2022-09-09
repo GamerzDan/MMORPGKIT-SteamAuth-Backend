@@ -36,7 +36,7 @@ namespace MultiplayerARPG.MMO
         /// <param name="username"></param>
         /// <param name="password"></param>
         /// <param name="result"></param>
-        public void callSteamLogin(string steamid, string ticket, RequestProceedResultDelegate<ResponseSteamAuthLoginMessage> result)
+        public void callSteamLogin(string steamid, string ticket, RequestProceedResultDelegate<ResponseSteamAuthLoginMessage> result, RequestHandlerData requestHandler)
         {
             string url = SteamUserAuthEndpoint + "/AuthenticateUserTicket/v1/";
             url = url + "?key=" + SteamWebKey.Trim() + "&appid=" + SteamConfig.AppID.ToString() + "&ticket=" + ticket.Trim();
@@ -81,7 +81,9 @@ namespace MultiplayerARPG.MMO
                     {
                         response = res.Text,
                     }); */
+
                     //Let's try to login the user from server
+                    HandleRequestSteamUserLogin(steamid, result, requestHandler);
                 }
 
             }).Catch(err =>

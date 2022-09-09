@@ -18,6 +18,12 @@ namespace MultiplayerARPG.MMO
 
         ulong steamid;
 
+        //We initiate SteamLogin as soon as the login screen is loaded, ideally we donot even want to show the login/registration screen
+        private void OnEnable()
+        {
+            tryMMOLogin();
+        }
+
         /// <summary>
         /// Performs client->server steam ticket validation before login. 
         /// Should be called as soon as Login screen is loaded, ideally from Awake or even directly without showing login screen,
@@ -75,7 +81,17 @@ namespace MultiplayerARPG.MMO
                 return;
             }
             //If success, try Kit's login
-            MMOClientInstance.Singleton.RequestUserLogin(Username, Password, OnLoginCustom);
+            //MMOClientInstance.Singleton.RequestUserLogin(Username, Password, OnLoginCustom);
+            
+            //Save userid/playerid, usefull for things like steamid
+            PlayerPrefs.SetString("_PLAYERID_", response.userId);
+            Debug.Log("_PLAYERID_ " +  response.userId);
+            //APIManager.instance.updatePlayerId(response.userId);
+
+            if (onLoginSuccess != null)
+            {
+                onLoginSuccess.Invoke();
+            }
         }
 
         /// <summary>

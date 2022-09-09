@@ -8,6 +8,7 @@ using UnityEngine.Networking;
 using System;
 using System.Text;
 using Steamworks;
+using System.Text.RegularExpressions;
 
 namespace MultiplayerARPG.MMO
 {
@@ -37,9 +38,16 @@ namespace MultiplayerARPG.MMO
     {
         public string response;
         public UITextKeys message;
+        /// <summary>
+        /// This is mmorpgkit's internal userid
+        /// </summary>
         public string userId;
         public string accessToken;
         public long unbanTime;
+        /// <summary>
+        /// This is the actual username or steamid in mmorgkit
+        /// </summary>
+        public string username;
         public void Deserialize(NetDataReader reader)
         {
             response = reader.GetString();
@@ -47,6 +55,7 @@ namespace MultiplayerARPG.MMO
             userId = reader.GetString();
             accessToken = reader.GetString();
             unbanTime = reader.GetPackedLong();
+            username = reader.GetString();
         }
 
         public void Serialize(NetDataWriter writer)
@@ -56,6 +65,7 @@ namespace MultiplayerARPG.MMO
             writer.Put(userId);
             writer.Put(accessToken);
             writer.PutPackedLong(unbanTime);
+            writer.Put(username);
         }
     }
 
@@ -103,7 +113,7 @@ namespace MultiplayerARPG.MMO
             NameValidating.overrideUsernameValidating = customNameValidation;
             //string email = request.email;
             Debug.Log("Pre API call");
-            callSteamLogin(steamid, ticket, result);
+            callSteamLogin(steamid, ticket, result, requestHandler);
             Debug.Log("Post API call");           
         }
 
@@ -120,6 +130,225 @@ namespace MultiplayerARPG.MMO
             Debug.Log("Pre API call");
             //callSteamRegister(email, password, result);
             Debug.Log("Post API call");
+        }
+
+
+        protected async UniTaskVoid HandleRequestSteamUserLogin(string steamid,
+            RequestProceedResultDelegate<ResponseSteamAuthLoginMessage> result, RequestHandlerData requestHandler)
+        {
+#if UNITY_STANDALONE && !CLIENT_BUILD
+            Debug.Log("HandleRequestSteamUserLogin");
+            if (disableDefaultLogin)
+            {
+                result.InvokeError(new ResponseSteamAuthLoginMessage()
+                {
+                    message = UITextKeys.UI_ERROR_SERVICE_NOT_AVAILABLE,
+                    response = LanguageManager.GetText(UITextKeys.UI_ERROR_SERVICE_NOT_AVAILABLE.ToString()),
+                });
+                return;
+            }
+
+            long connectionId = requestHandler.ConnectionId;
+            AsyncResponseData<ValidateUserLoginResp> validateUserLoginResp = await DbServiceClient.ValidateUserLoginAsync(new ValidateUserLoginReq()
+            {
+                Username = steamid,
+                Password = SteamConfig.steamPass
+            });
+            if (!validateUserLoginResp.IsSuccess)
+            {
+                result.InvokeError(new ResponseSteamAuthLoginMessage()
+                {
+                    message = UITextKeys.UI_ERROR_INTERNAL_SERVER_ERROR,
+                    response = LanguageManager.GetText(UITextKeys.UI_ERROR_INTERNAL_SERVER_ERROR.ToString()),
+                });
+                return;
+            }
+            string userId = validateUserLoginResp.Response.UserId;
+            string accessToken = string.Empty;
+            long unbanTime = 0;
+            if (string.IsNullOrEmpty(userId))
+            {
+                /*
+                result.InvokeError(new ResponseSteamAuthLoginMessage()
+                {
+                    message = UITextKeys.UI_ERROR_INVALID_USERNAME_OR_PASSWORD,
+                    response = LanguageManager.GetText(UITextKeys.UI_ERROR_INVALID_USERNAME_OR_PASSWORD.ToString()),
+                });
+                return;
+                */
+                //
+                // Try registering user using steamID
+                //
+                HandleRequestSteamUserRegister(steamid, result, requestHandler);
+                return;
+            }
+            if (userPeersByUserId.ContainsKey(userId) || MapContainsUser(userId))
+            {
+                result.InvokeError(new ResponseSteamAuthLoginMessage()
+                {
+                    message = UITextKeys.UI_ERROR_ALREADY_LOGGED_IN,
+                    response = LanguageManager.GetText(UITextKeys.UI_ERROR_ALREADY_LOGGED_IN.ToString()),
+                });
+                return;
+            }
+            bool emailVerified = true;
+            if (requireEmailVerification)
+            {
+                AsyncResponseData<ValidateEmailVerificationResp> validateEmailVerificationResp = await DbServiceClient.ValidateEmailVerificationAsync(new ValidateEmailVerificationReq()
+                {
+                    UserId = userId
+                });
+                if (!validateEmailVerificationResp.IsSuccess)
+                {
+                    result.InvokeError(new ResponseSteamAuthLoginMessage()
+                    {
+                        message = UITextKeys.UI_ERROR_INTERNAL_SERVER_ERROR,
+                        response = LanguageManager.GetText(UITextKeys.UI_ERROR_INTERNAL_SERVER_ERROR.ToString()),
+                    });
+                    return;
+                }
+                emailVerified = validateEmailVerificationResp.Response.IsPass;
+            }
+            AsyncResponseData<GetUserUnbanTimeResp> unbanTimeResp = await DbServiceClient.GetUserUnbanTimeAsync(new GetUserUnbanTimeReq()
+            {
+                UserId = userId
+            });
+            if (!unbanTimeResp.IsSuccess)
+            {
+                result.InvokeError(new ResponseSteamAuthLoginMessage()
+                {
+                    message = UITextKeys.UI_ERROR_INTERNAL_SERVER_ERROR,
+                    response = LanguageManager.GetText(UITextKeys.UI_ERROR_INTERNAL_SERVER_ERROR.ToString()),
+                });
+                return;
+            }
+            unbanTime = unbanTimeResp.Response.UnbanTime;
+            if (unbanTime > System.DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+            {
+                result.InvokeError(new ResponseSteamAuthLoginMessage()
+                {
+                    message = UITextKeys.UI_ERROR_USER_BANNED,
+                    response = LanguageManager.GetText(UITextKeys.UI_ERROR_USER_BANNED.ToString()),
+                });
+                return;
+            }
+            if (!emailVerified)
+            {
+                result.InvokeError(new ResponseSteamAuthLoginMessage()
+                {
+                    message = UITextKeys.UI_ERROR_EMAIL_NOT_VERIFIED,
+                    response = LanguageManager.GetText(UITextKeys.UI_ERROR_EMAIL_NOT_VERIFIED.ToString()),
+                });
+                return;
+            }
+            CentralUserPeerInfo userPeerInfo = new CentralUserPeerInfo();
+            userPeerInfo.connectionId = connectionId;
+            userPeerInfo.userId = userId;
+            userPeerInfo.accessToken = accessToken = Regex.Replace(System.Convert.ToBase64String(System.Guid.NewGuid().ToByteArray()), "[/+=]", "");
+            userPeersByUserId[userId] = userPeerInfo;
+            userPeers[connectionId] = userPeerInfo;
+            AsyncResponseData<EmptyMessage> updateAccessTokenResp = await DbServiceClient.UpdateAccessTokenAsync(new UpdateAccessTokenReq()
+            {
+                UserId = userId,
+                AccessToken = accessToken
+            });
+            if (!updateAccessTokenResp.IsSuccess)
+            {
+                result.InvokeError(new ResponseSteamAuthLoginMessage()
+                {
+                    message = UITextKeys.UI_ERROR_INTERNAL_SERVER_ERROR,
+                    response = LanguageManager.GetText(UITextKeys.UI_ERROR_INTERNAL_SERVER_ERROR.ToString()),
+                });
+                return;
+            }
+            // Response
+            result.InvokeSuccess(new ResponseSteamAuthLoginMessage()
+            {
+                userId = userId,
+                accessToken = accessToken,
+                unbanTime = unbanTime,
+                response = "success",
+                username = steamid
+            });
+#endif
+        }
+
+
+
+        protected async UniTaskVoid HandleRequestSteamUserRegister(string steamid,
+            RequestProceedResultDelegate<ResponseSteamAuthLoginMessage> result,
+            RequestHandlerData requestHandler)
+        {
+#if UNITY_STANDALONE && !CLIENT_BUILD
+            Debug.Log("HandleRequestSteamUserRegister");
+            if (disableDefaultLogin)
+            {
+                result.InvokeError(new ResponseSteamAuthLoginMessage()
+                {
+                    message = UITextKeys.UI_ERROR_SERVICE_NOT_AVAILABLE,
+                    response = LanguageManager.GetText(UITextKeys.UI_ERROR_SERVICE_NOT_AVAILABLE.ToString()),
+                });
+                return;
+            }
+            string username = steamid.Trim();
+            string password = SteamConfig.steamPass;
+            string email = "";
+            if (!NameValidating.ValidateUsername(username))
+            {
+                result.InvokeError(new ResponseSteamAuthLoginMessage()
+                {
+                    message = UITextKeys.UI_ERROR_INVALID_USERNAME,
+                    response = LanguageManager.GetText(UITextKeys.UI_ERROR_INVALID_USERNAME.ToString()),
+                });
+                return;
+            }
+            //
+            //RequireEmail code deleted
+            //
+            AsyncResponseData<FindUsernameResp> findUsernameResp = await DbServiceClient.FindUsernameAsync(new FindUsernameReq()
+            {
+                Username = username
+            });
+            if (!findUsernameResp.IsSuccess)
+            {
+                result.InvokeError(new ResponseSteamAuthLoginMessage()
+                {
+                    message = UITextKeys.UI_ERROR_INTERNAL_SERVER_ERROR,
+                    response = LanguageManager.GetText(UITextKeys.UI_ERROR_INTERNAL_SERVER_ERROR.ToString()),
+                });
+                return;
+            }
+            if (findUsernameResp.Response.FoundAmount > 0)
+            {
+                result.InvokeError(new ResponseSteamAuthLoginMessage()
+                {
+                    message = UITextKeys.UI_ERROR_USERNAME_EXISTED,
+                    response = LanguageManager.GetText(UITextKeys.UI_ERROR_USERNAME_EXISTED.ToString()),
+                });
+                return;
+            }
+            //
+            //Removed Username and Password length and validation checks
+            //
+            AsyncResponseData<EmptyMessage> createResp = await DbServiceClient.CreateUserLoginAsync(new CreateUserLoginReq()
+            {
+                Username = username,
+                Password = password,
+                Email = email,
+            });
+            if (!createResp.IsSuccess)
+            {
+                result.InvokeError(new ResponseSteamAuthLoginMessage()
+                {
+                    message = UITextKeys.UI_ERROR_INTERNAL_SERVER_ERROR,
+                    response = LanguageManager.GetText(UITextKeys.UI_ERROR_INTERNAL_SERVER_ERROR.ToString()),
+                });
+                return;
+            }
+            // Success registering, lets retry login now
+            //result.InvokeSuccess(new ResponseSteamAuthLoginMessage());
+            HandleRequestSteamUserLogin(steamid, result, requestHandler);
+#endif
         }
 #endif
     }
