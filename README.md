@@ -28,7 +28,7 @@ client(authticket)->server(validateValveAPI)->(SUCCESS)->server(checkBans)->serv
 https://assetstore.unity.com/packages/templates/systems/mmorpg-kit-2d-3d-survival-110188
 #### Rest Client for Unity (tested on 2.62)
 https://assetstore.unity.com/packages/tools/network/rest-client-for-unity-102501        
-#### FacePunch.Steamworks (Using release 2.3.2 which includes the steamsdk already)
+#### FacePunch.Steamworks (INCLUDED IN REPO, Using release 2.3.2 which includes the steamsdk already)
 https://github.com/Facepunch/Facepunch.Steamworks
 #### Steamworks Account/Access (for steam appid and publisher api key)
 https://partner.steamgames.com/
