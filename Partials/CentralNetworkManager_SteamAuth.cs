@@ -379,7 +379,7 @@ namespace MultiplayerARPG.MMO
                 err.error = true;
                 err.code = 1;
                 err.message = "Game launched outside steam, restarting it from Steam";
-                DelayExitGame(3.0f);    //Exit after delay as the game is about to be relaunched from Steam
+                StartCoroutine(DelayExitGame(3.0f));    //Exit after delay as the game is about to be relaunched from Steam
                 return err;
             }
 #endif
