@@ -6,29 +6,56 @@ using System.Linq;
 using System;
 using MultiplayerARPG.MMO;
 using LiteNetLibManager;
+using System.IO;
+using MiniJSON;
 
 namespace MultiplayerARPG.MMO
 {
-
-    public static class SteamConfig
-    {
-        internal const uint AppID = 480;        //480 is dev/test appid for SPACEWARS
 #if UNITY_STANDALONE && !CLIENT_BUILD
+    public partial class CentralNetworkManager
+    {
         /// <summary>
         /// Static/Fixed password we set for all accounts internally in MMORPGKIT as with SteamAuth we only need steamID as username.
         /// But MMORPGKit still needs a dummy password.
         /// </summary>
-        internal const string steamPass = @"AIzaSyA4sj5mUuvJIQWp1mdxm5Xbf_ffQLLPqIM";
-#endif
-    }
+        protected string steamPass = @"AIzaSyA4sj5mUuvJIQWp1mdxm5Xbf_ffQLLPqIM";
 
-
-
-#if UNITY_STANDALONE && !CLIENT_BUILD
-    public partial class CentralNetworkManager
-    {
         protected string SteamUserAuthEndpoint = @"https://partner.steam-api.com/ISteamUserAuth";
         protected string SteamWebKey = @"97DEA59865CCBF04CABA1B5DC03275C2";
+        public static uint AppID = 480;        //480 is dev/test appid for SPACEWARS
+
+        //We can set them dynamically from reading serverConfig file
+        protected string configSteamWebKey = @"";
+        protected uint configAppID = 0;        //480 is dev/test appid for SPACEWARS
+
+
+        private void Awake()
+        {
+            // Json file read
+            string configFilePath = "./config/serverConfig.json";
+            Dictionary<string, object> jsonConfig = new Dictionary<string, object>();
+            Logging.Log(ToString(), "CentralNetworkManager Reading config file from " + configFilePath);
+            if (File.Exists(configFilePath))
+            {
+                Logging.Log(ToString(), "Found config file");
+                string dataAsJson = File.ReadAllText(configFilePath);
+                jsonConfig = Json.Deserialize(dataAsJson) as Dictionary<string, object>;
+            }
+
+            string steamAPIKey;
+            if (ConfigReader.ReadConfigs(jsonConfig, "SteamWebKey", out steamAPIKey, ""))
+            {
+                SteamWebKey = steamAPIKey.Trim();
+                Debug.Log("serverConfig set SteamWebKey: " + SteamWebKey);
+            }
+
+            string steamAPPID;
+            if (ConfigReader.ReadConfigs(jsonConfig, "SteamAppID", out steamAPPID, ""))
+            {
+                AppID = Convert.ToUInt32(steamAPPID);
+                Debug.Log("serverConfig set APPID: " + AppID);
+            }
+        }
 
         /// <summary>
         /// Sends AuthTicket GET call to Steam
@@ -39,7 +66,7 @@ namespace MultiplayerARPG.MMO
         public void callSteamLogin(string steamid, string ticket, RequestProceedResultDelegate<ResponseSteamAuthLoginMessage> result, RequestHandlerData requestHandler)
         {
             string url = SteamUserAuthEndpoint + "/AuthenticateUserTicket/v1/";
-            url = url + "?key=" + SteamWebKey.Trim() + "&appid=" + SteamConfig.AppID.ToString() + "&ticket=" + ticket.Trim();
+            url = url + "?key=" + SteamWebKey.Trim() + "&appid=" + AppID.ToString() + "&ticket=" + ticket.Trim();
 
             var currentRequest = new RequestHelper
             {

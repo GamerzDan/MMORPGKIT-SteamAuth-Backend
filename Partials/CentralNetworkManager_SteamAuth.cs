@@ -71,6 +71,7 @@ namespace MultiplayerARPG.MMO
 
     public partial class CentralNetworkManager
     {
+
         /// <summary>
         /// Custom Name validation to be used in delegate of NameValidating class
         /// Currently using it to disable name validation as we will use email for username
@@ -82,7 +83,7 @@ namespace MultiplayerARPG.MMO
             Debug.Log("Using customNameValidation");
             return true;
         }
-#if UNITY_STANDALONE && !CLIENT_BUILD
+
         public bool RequestSteamLogin(string steamid, string ticket, ResponseDelegate<ResponseSteamAuthLoginMessage> callback)
         {
             return ClientSendRequest(MMORequestTypes.RequestSteamLogin, new RequestUserLoginMessage()
@@ -102,6 +103,7 @@ namespace MultiplayerARPG.MMO
             }, responseDelegate: callback);
         }
 
+#if UNITY_STANDALONE && !CLIENT_BUILD
         protected async UniTaskVoid HandleRequestSteamLogin(
             RequestHandlerData requestHandler,
             RequestUserLoginMessage request,
@@ -136,7 +138,6 @@ namespace MultiplayerARPG.MMO
         protected async UniTaskVoid HandleRequestSteamUserLogin(string steamid,
             RequestProceedResultDelegate<ResponseSteamAuthLoginMessage> result, RequestHandlerData requestHandler)
         {
-#if UNITY_STANDALONE && !CLIENT_BUILD
             Debug.Log("HandleRequestSteamUserLogin");
             if (disableDefaultLogin)
             {
@@ -152,7 +153,7 @@ namespace MultiplayerARPG.MMO
             AsyncResponseData<ValidateUserLoginResp> validateUserLoginResp = await DbServiceClient.ValidateUserLoginAsync(new ValidateUserLoginReq()
             {
                 Username = steamid,
-                Password = SteamConfig.steamPass
+                Password = steamPass
             });
             if (!validateUserLoginResp.IsSuccess)
             {
@@ -168,17 +169,7 @@ namespace MultiplayerARPG.MMO
             long unbanTime = 0;
             if (string.IsNullOrEmpty(userId))
             {
-                /*
-                result.InvokeError(new ResponseSteamAuthLoginMessage()
-                {
-                    message = UITextKeys.UI_ERROR_INVALID_USERNAME_OR_PASSWORD,
-                    response = LanguageManager.GetText(UITextKeys.UI_ERROR_INVALID_USERNAME_OR_PASSWORD.ToString()),
-                });
-                return;
-                */
-                //
-                // Try registering user using steamID
-                //
+                //// Try registering user using steamID
                 HandleRequestSteamUserRegister(steamid, result, requestHandler);
                 return;
             }
@@ -191,24 +182,7 @@ namespace MultiplayerARPG.MMO
                 });
                 return;
             }
-            bool emailVerified = true;
-            if (requireEmailVerification)
-            {
-                AsyncResponseData<ValidateEmailVerificationResp> validateEmailVerificationResp = await DbServiceClient.ValidateEmailVerificationAsync(new ValidateEmailVerificationReq()
-                {
-                    UserId = userId
-                });
-                if (!validateEmailVerificationResp.IsSuccess)
-                {
-                    result.InvokeError(new ResponseSteamAuthLoginMessage()
-                    {
-                        message = UITextKeys.UI_ERROR_INTERNAL_SERVER_ERROR,
-                        response = LanguageManager.GetText(UITextKeys.UI_ERROR_INTERNAL_SERVER_ERROR.ToString()),
-                    });
-                    return;
-                }
-                emailVerified = validateEmailVerificationResp.Response.IsPass;
-            }
+            
             AsyncResponseData<GetUserUnbanTimeResp> unbanTimeResp = await DbServiceClient.GetUserUnbanTimeAsync(new GetUserUnbanTimeReq()
             {
                 UserId = userId
@@ -232,21 +206,13 @@ namespace MultiplayerARPG.MMO
                 });
                 return;
             }
-            if (!emailVerified)
-            {
-                result.InvokeError(new ResponseSteamAuthLoginMessage()
-                {
-                    message = UITextKeys.UI_ERROR_EMAIL_NOT_VERIFIED,
-                    response = LanguageManager.GetText(UITextKeys.UI_ERROR_EMAIL_NOT_VERIFIED.ToString()),
-                });
-                return;
-            }
             CentralUserPeerInfo userPeerInfo = new CentralUserPeerInfo();
             userPeerInfo.connectionId = connectionId;
             userPeerInfo.userId = userId;
             userPeerInfo.accessToken = accessToken = Regex.Replace(System.Convert.ToBase64String(System.Guid.NewGuid().ToByteArray()), "[/+=]", "");
             userPeersByUserId[userId] = userPeerInfo;
             userPeers[connectionId] = userPeerInfo;
+            Debug.Log("HandleRequestSteamUserLogin: " + userId + " " + connectionId + " " + accessToken + " " + userPeerInfo.accessToken);
             AsyncResponseData<EmptyMessage> updateAccessTokenResp = await DbServiceClient.UpdateAccessTokenAsync(new UpdateAccessTokenReq()
             {
                 UserId = userId,
@@ -270,7 +236,6 @@ namespace MultiplayerARPG.MMO
                 response = "success",
                 username = steamid
             });
-#endif
         }
 
 
@@ -279,7 +244,6 @@ namespace MultiplayerARPG.MMO
             RequestProceedResultDelegate<ResponseSteamAuthLoginMessage> result,
             RequestHandlerData requestHandler)
         {
-#if UNITY_STANDALONE && !CLIENT_BUILD
             Debug.Log("HandleRequestSteamUserRegister");
             if (disableDefaultLogin)
             {
@@ -291,7 +255,7 @@ namespace MultiplayerARPG.MMO
                 return;
             }
             string username = steamid.Trim();
-            string password = SteamConfig.steamPass;
+            string password = steamPass;
             string email = "";
             if (!NameValidating.ValidateUsername(username))
             {
@@ -348,7 +312,6 @@ namespace MultiplayerARPG.MMO
             // Success registering, lets retry login now
             //result.InvokeSuccess(new ResponseSteamAuthLoginMessage());
             HandleRequestSteamUserLogin(steamid, result, requestHandler);
-#endif
         }
 #endif
     }
@@ -358,11 +321,29 @@ namespace MultiplayerARPG.MMO
     {
         public void RequestSteamLogin(string steamid, string ticket, ResponseDelegate<ResponseSteamAuthLoginMessage> callback)
         {
-            centralNetworkManager.RequestSteamLogin(steamid, ticket, callback);
+            //centralNetworkManager.RequestSteamLogin(steamid, ticket, callback);
+            CentralNetworkManager.RequestSteamLogin(steamid, ticket, (responseHandler, responseCode, response) => OnRequestSteamLogin(responseHandler, responseCode, response, callback).Forget());
         }
         public void RequestSteamRegister(string email, string password, ResponseDelegate<ResponseSteamAuthLoginMessage> callback)
         {
             centralNetworkManager.RequestSteamRegister(email, password, callback);
+        }
+
+        private async UniTaskVoid OnRequestSteamLogin(ResponseHandlerData responseHandler, AckResponseCode responseCode, ResponseSteamAuthLoginMessage response, ResponseDelegate<ResponseSteamAuthLoginMessage> callback)
+        {
+            await UniTask.Yield();
+
+            if (callback != null)
+                callback.Invoke(responseHandler, responseCode, response);
+
+            GameInstance.UserId = string.Empty;
+            GameInstance.UserToken = string.Empty;
+            GameInstance.SelectedCharacterId = string.Empty;
+            if (responseCode == AckResponseCode.Success)
+            {
+                GameInstance.UserId = response.userId;
+                GameInstance.UserToken = response.accessToken;
+            }
         }
 
         /// <summary>
@@ -374,7 +355,7 @@ namespace MultiplayerARPG.MMO
         {
             ErrorDetailsRes err = new ErrorDetailsRes();
 #if !UNITY_EDITOR
-            if (Steamworks.SteamClient.RestartAppIfNecessary(SteamConfig.AppID))
+            if (Steamworks.SteamClient.RestartAppIfNecessary(CentralNetworkManager.AppID))
             {
                 err.error = true;
                 err.code = 1;
@@ -393,7 +374,7 @@ namespace MultiplayerARPG.MMO
             //Try initialization
             try
             {
-                Steamworks.SteamClient.Init(SteamConfig.AppID, true);
+                Steamworks.SteamClient.Init(CentralNetworkManager.AppID, true);
                 err.error = false;
                 err.code = 0;
                 err.message = "SteamClient Initialized";
