@@ -11,9 +11,13 @@ using MiniJSON;
 
 namespace MultiplayerARPG.MMO
 {
-#if UNITY_STANDALONE && !CLIENT_BUILD
+
     public partial class CentralNetworkManager
     {
+
+        public static uint AppID = 480;        //480 is dev/test appid for SPACEWARS
+
+#if UNITY_STANDALONE && SERVER_BUILD
         /// <summary>
         /// Static/Fixed password we set for all accounts internally in MMORPGKIT as with SteamAuth we only need steamID as username.
         /// But MMORPGKit still needs a dummy password.
@@ -22,12 +26,6 @@ namespace MultiplayerARPG.MMO
 
         protected string SteamUserAuthEndpoint = @"https://partner.steam-api.com/ISteamUserAuth";
         protected string SteamWebKey = @"97DEA59865CCBF04CABA1B5DC03275C2";
-        public static uint AppID = 480;        //480 is dev/test appid for SPACEWARS
-
-        //We can set them dynamically from reading serverConfig file
-        protected string configSteamWebKey = @"";
-        protected uint configAppID = 0;        //480 is dev/test appid for SPACEWARS
-
 
         private void Awake()
         {
@@ -126,7 +124,7 @@ namespace MultiplayerARPG.MMO
             });
         }
 
-
-    }
 #endif
+    }
+
 }
