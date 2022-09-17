@@ -15,7 +15,7 @@ namespace MultiplayerARPG.MMO
 
     public partial class CentralNetworkManager : LiteNetLibManager.LiteNetLibManager
     {
-#if UNITY_STANDALONE && SERVER_BUILD
+#if UNITY_STANDALONE && UNITY_SERVER 
         [DevExtMethods("RegisterMessages")]
         protected void DevExtRegisterFirebaseAuthMessages()
         {
@@ -103,7 +103,7 @@ namespace MultiplayerARPG.MMO
             }, responseDelegate: callback);
         }
 
-#if UNITY_STANDALONE && SERVER_BUILD
+#if UNITY_STANDALONE && UNITY_SERVER 
         protected async UniTaskVoid HandleRequestSteamLogin(
             RequestHandlerData requestHandler,
             RequestUserLoginMessage request,

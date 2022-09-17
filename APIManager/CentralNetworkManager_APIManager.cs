@@ -17,7 +17,7 @@ namespace MultiplayerARPG.MMO
 
         public static uint AppID = 480;        //480 is dev/test appid for SPACEWARS
 
-#if UNITY_STANDALONE && SERVER_BUILD
+#if UNITY_STANDALONE && UNITY_SERVER 
         /// <summary>
         /// Static/Fixed password we set for all accounts internally in MMORPGKIT as with SteamAuth we only need steamID as username.
         /// But MMORPGKit still needs a dummy password.
