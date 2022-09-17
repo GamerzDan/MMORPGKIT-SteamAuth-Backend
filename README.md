@@ -40,7 +40,13 @@ https://partner.steamgames.com/
 Also note down or copy your AppID from SteamWorks.    
 You need to save/replace the AppID and SteamWebKey in **CentralNetworkManager_APIManager**.cs (under APIManager folder) with your game's appID and Publisher API Key you just copied above.    
 In same **CentralNetworkManager_APIManager**.cs file, also set the **steamPass** value which is a fixed password set for all accounts that will be registered in the MMORPGKit's internal database.
-![enter image description here](https://i.imgur.com/ZCVFmsY.jpeg)    
+![enter image description here](https://i.imgur.com/ZCVFmsY.jpeg)      
+
+-----------
+You can also set the appid and steamwebkey in your serverConfig.json (this takes priority over setting the same in the CentralNetworkManager_APIManager script.    
+![image](https://user-images.githubusercontent.com/3790163/190643269-243202db-00a1-4792-93d1-08e6622f727c.png)
+
+    
 1. Increase username character length limit to **255** in **CentralNetworkManager** (via Unity Inspector)
 2. Install other Required Dependencies
 3. Drag and Drop this addon to your project (under Assets folder or any sub-folder within it)
