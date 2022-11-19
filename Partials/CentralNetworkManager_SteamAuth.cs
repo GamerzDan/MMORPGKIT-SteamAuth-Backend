@@ -159,6 +159,7 @@ namespace MultiplayerARPG.MMO
             });
             if (!validateUserLoginResp.IsSuccess)
             {
+                Debug.Log("SteamLogin ValidateUserLogin Failed");
                 result.InvokeError(new ResponseSteamAuthLoginMessage()
                 {
                     message = UITextKeys.UI_ERROR_INTERNAL_SERVER_ERROR,
@@ -177,6 +178,11 @@ namespace MultiplayerARPG.MMO
             }
             if (userPeersByUserId.ContainsKey(userId) || MapContainsUser(userId))
             {
+                Debug.Log("SteamLogin User Already Logged in");
+                // Kick the user from game
+                if (userPeersByUserId.ContainsKey(userId))
+                    ServerTransport.ServerDisconnect(userPeersByUserId[userId].connectionId);
+                ClusterServer.KickUser(userId);
                 result.InvokeError(new ResponseSteamAuthLoginMessage()
                 {
                     message = UITextKeys.UI_ERROR_ALREADY_LOGGED_IN,
@@ -191,6 +197,7 @@ namespace MultiplayerARPG.MMO
             });
             if (!unbanTimeResp.IsSuccess)
             {
+                Debug.Log("SteamLogin UserUnbanTime Failed");
                 result.InvokeError(new ResponseSteamAuthLoginMessage()
                 {
                     message = UITextKeys.UI_ERROR_INTERNAL_SERVER_ERROR,
@@ -201,6 +208,7 @@ namespace MultiplayerARPG.MMO
             unbanTime = unbanTimeResp.Response.UnbanTime;
             if (unbanTime > System.DateTimeOffset.UtcNow.ToUnixTimeSeconds())
             {
+                Debug.Log("SteamLogin User is Banned");
                 result.InvokeError(new ResponseSteamAuthLoginMessage()
                 {
                     message = UITextKeys.UI_ERROR_USER_BANNED,
@@ -222,6 +230,7 @@ namespace MultiplayerARPG.MMO
             });
             if (!updateAccessTokenResp.IsSuccess)
             {
+                Debug.Log("SteamLogin UpdateAccessToken Failed");
                 result.InvokeError(new ResponseSteamAuthLoginMessage()
                 {
                     message = UITextKeys.UI_ERROR_INTERNAL_SERVER_ERROR,
@@ -279,6 +288,7 @@ namespace MultiplayerARPG.MMO
             });
             if (!findUsernameResp.IsSuccess)
             {
+                Debug.Log("SteamRegister FindUsernameReq Failed");
                 result.InvokeError(new ResponseSteamAuthLoginMessage()
                 {
                     message = UITextKeys.UI_ERROR_INTERNAL_SERVER_ERROR,
@@ -288,6 +298,7 @@ namespace MultiplayerARPG.MMO
             }
             if (findUsernameResp.Response.FoundAmount > 0)
             {
+                Debug.Log("SteamRegister Username Exists");
                 result.InvokeError(new ResponseSteamAuthLoginMessage()
                 {
                     message = UITextKeys.UI_ERROR_USERNAME_EXISTED,
@@ -306,6 +317,7 @@ namespace MultiplayerARPG.MMO
             });
             if (!createResp.IsSuccess)
             {
+                Debug.Log("SteamRegister RegistrationReq Failed");
                 result.InvokeError(new ResponseSteamAuthLoginMessage()
                 {
                     message = UITextKeys.UI_ERROR_INTERNAL_SERVER_ERROR,
