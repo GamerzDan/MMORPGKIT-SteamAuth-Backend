@@ -21,7 +21,7 @@ namespace MultiplayerARPG.MMO
         //We initiate SteamLogin as soon as the login screen is loaded, ideally we donot even want to show the login/registration screen
         private void OnEnable()
         {
-            tryMMOLogin();
+            trySteamMMOLogin();
         }
 
         /// <summary>
@@ -30,7 +30,7 @@ namespace MultiplayerARPG.MMO
         /// as we donot need to see login fields.
         /// SteamAuth does not use a username or password, steamID becomes username and password is hardcoded server-side
         /// </summary>
-        public void tryMMOLogin()
+        public void trySteamMMOLogin()
         {
             if (LoggingIn)
                 return;

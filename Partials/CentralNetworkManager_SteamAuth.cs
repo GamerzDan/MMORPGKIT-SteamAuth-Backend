@@ -15,14 +15,12 @@ namespace MultiplayerARPG.MMO
 
     public partial class CentralNetworkManager : LiteNetLibManager.LiteNetLibManager
     {
-#if UNITY_STANDALONE && UNITY_SERVER 
         [DevExtMethods("RegisterMessages")]
-        protected void DevExtRegisterFirebaseAuthMessages()
+        protected void DevExtRegisterSteamAuthMessages()
         {
             RegisterRequestToServer<RequestUserLoginMessage, ResponseSteamAuthLoginMessage>(MMORequestTypes.RequestSteamLogin, HandleRequestSteamLogin);
             RegisterRequestToServer<RequestUserRegisterMessage, ResponseSteamAuthLoginMessage>(MMORequestTypes.RequestSteamRegister, HandleRequestSteamRegister);
         }
-#endif
     }
 
     public static partial class MMORequestTypes
@@ -78,7 +76,7 @@ namespace MultiplayerARPG.MMO
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
-        protected virtual bool customNameValidation(string name)
+        protected virtual bool steamCustomNameValidation(string name)
         {
             Debug.Log("Using customNameValidation");
             return true;
@@ -103,20 +101,21 @@ namespace MultiplayerARPG.MMO
             }, responseDelegate: callback);
         }
 
-#if UNITY_STANDALONE && UNITY_SERVER 
         protected async UniTaskVoid HandleRequestSteamLogin(
             RequestHandlerData requestHandler,
             RequestUserLoginMessage request,
             RequestProceedResultDelegate<ResponseSteamAuthLoginMessage> result)
         {
+#if UNITY_EDITOR || UNITY_SERVER
             string message = "";
             string steamid = request.username;
             string ticket = request.password;
-            NameValidating.overrideUsernameValidating = customNameValidation;
+            NameValidating.overrideUsernameValidating = steamCustomNameValidation;
             //string email = request.email;
             Debug.Log("Pre API call");
             callSteamLogin(steamid, ticket, result, requestHandler);
-            Debug.Log("Post API call");           
+            Debug.Log("Post API call");
+#endif
         }
 
         protected async UniTaskVoid HandleRequestSteamRegister(
@@ -124,20 +123,23 @@ namespace MultiplayerARPG.MMO
             RequestUserRegisterMessage request,
             RequestProceedResultDelegate<ResponseSteamAuthLoginMessage> result)
         {
+#if UNITY_EDITOR || UNITY_SERVER
             string message = "";
             string email = request.username;
             string password = request.password;
-            NameValidating.overrideUsernameValidating = customNameValidation;
+            NameValidating.overrideUsernameValidating = steamCustomNameValidation;
             //string email = request.email;
             Debug.Log("Pre API call");
             //callSteamRegister(email, password, result);
             Debug.Log("Post API call");
+#endif
         }
 
 
         protected async UniTaskVoid HandleRequestSteamUserLogin(string steamid,
             RequestProceedResultDelegate<ResponseSteamAuthLoginMessage> result, RequestHandlerData requestHandler)
         {
+#if UNITY_EDITOR || UNITY_SERVER
             Debug.Log("HandleRequestSteamUserLogin");
             if (disableDefaultLogin)
             {
@@ -182,7 +184,7 @@ namespace MultiplayerARPG.MMO
                 });
                 return;
             }
-            
+
             AsyncResponseData<GetUserUnbanTimeResp> unbanTimeResp = await DbServiceClient.GetUserUnbanTimeAsync(new GetUserUnbanTimeReq()
             {
                 UserId = userId
@@ -236,6 +238,7 @@ namespace MultiplayerARPG.MMO
                 response = "success",
                 username = steamid
             });
+#endif
         }
 
 
@@ -244,6 +247,7 @@ namespace MultiplayerARPG.MMO
             RequestProceedResultDelegate<ResponseSteamAuthLoginMessage> result,
             RequestHandlerData requestHandler)
         {
+#if UNITY_EDITOR || UNITY_SERVER
             Debug.Log("HandleRequestSteamUserRegister");
             if (disableDefaultLogin)
             {
@@ -312,8 +316,9 @@ namespace MultiplayerARPG.MMO
             // Success registering, lets retry login now
             //result.InvokeSuccess(new ResponseSteamAuthLoginMessage());
             HandleRequestSteamUserLogin(steamid, result, requestHandler);
-        }
 #endif
+        }
+
     }
 
 
