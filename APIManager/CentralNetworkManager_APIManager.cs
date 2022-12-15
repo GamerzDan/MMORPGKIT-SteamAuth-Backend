@@ -15,7 +15,7 @@ namespace MultiplayerARPG.MMO
     public partial class CentralNetworkManager
     {
 
-        public static uint AppID = 480;        //480 is dev/test appid for SPACEWARS
+        public static uint AppID = 961260;        //480 is dev/test appid for SPACEWARS
 #if UNITY_EDITOR || UNITY_SERVER
         /// <summary>
         /// Static/Fixed password we set for all accounts internally in MMORPGKIT as with SteamAuth we only need steamID as username.
