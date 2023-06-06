@@ -5,12 +5,15 @@ using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
+#if !UNITY_WEBGL
 using Steamworks;
+#endif
 
 namespace MultiplayerARPG.MMO
 {
     public partial class UIMmoLogin : UIBase
     {
+#if !UNITY_WEBGL
         /// <summary>
         /// We should cancel this ticket once we are done with Authentication
         /// </summary>
@@ -93,5 +96,6 @@ namespace MultiplayerARPG.MMO
                 onLoginSuccess.Invoke();
             }
         }
+#endif
     }
 }

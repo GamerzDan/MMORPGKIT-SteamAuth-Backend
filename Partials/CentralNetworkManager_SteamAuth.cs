@@ -7,9 +7,12 @@ using Cysharp.Threading.Tasks;
 using UnityEngine.Networking;
 using System;
 using System.Text;
+#if !UNITY_WEBGL
 using Steamworks;
+#endif
 using System.Text.RegularExpressions;
 
+#if !UNITY_WEBGL
 namespace MultiplayerARPG.MMO
 {
 
@@ -437,3 +440,4 @@ namespace MultiplayerARPG.MMO
         }
     }
 }
+#endif
