@@ -185,7 +185,8 @@ namespace MultiplayerARPG.MMO
                 // Kick the user from game
                 if (userPeersByUserId.ContainsKey(userId))
                     ServerTransport.ServerDisconnect(userPeersByUserId[userId].connectionId);
-                ClusterServer.KickUser(userId);
+                //TODO: ENABLE WHEN UPDATE TO 1.77
+                //ClusterServer.KickUser(userId);
                 result.InvokeError(new ResponseSteamAuthLoginMessage()
                 {
                     message = UITextKeys.UI_ERROR_ALREADY_LOGGED_IN,
@@ -373,8 +374,10 @@ namespace MultiplayerARPG.MMO
         /// <returns></returns>
         public ErrorDetailsRes trySteamInit()
         {
+            //TODO: Enable in production, disable during test runs
             ErrorDetailsRes err = new ErrorDetailsRes();
 #if !UNITY_EDITOR
+/*
             if (Steamworks.SteamClient.RestartAppIfNecessary(CentralNetworkManager.AppID))
             {
                 err.error = true;
@@ -383,6 +386,7 @@ namespace MultiplayerARPG.MMO
                 StartCoroutine(DelayExitGame(3.0f));    //Exit after delay as the game is about to be relaunched from Steam
                 return err;
             }
+            */
 #endif
             if (Steamworks.SteamClient.IsValid)
             {
