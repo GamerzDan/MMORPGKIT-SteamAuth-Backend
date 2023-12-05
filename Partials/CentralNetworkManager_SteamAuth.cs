@@ -113,7 +113,6 @@ namespace MultiplayerARPG.MMO
             string message = "";
             string steamid = request.username;
             string ticket = request.password;
-            NameValidating.overrideUsernameValidating = steamCustomNameValidation;
             //string email = request.email;
             Debug.Log("Pre API call");
             callSteamLogin(steamid, ticket, result, requestHandler);
@@ -130,7 +129,6 @@ namespace MultiplayerARPG.MMO
             string message = "";
             string email = request.username;
             string password = request.password;
-            NameValidating.overrideUsernameValidating = steamCustomNameValidation;
             //string email = request.email;
             Debug.Log("Pre API call");
             //callSteamRegister(email, password, result);
@@ -142,7 +140,7 @@ namespace MultiplayerARPG.MMO
         protected async UniTaskVoid HandleRequestSteamUserLogin(string steamid,
             RequestProceedResultDelegate<ResponseSteamAuthLoginMessage> result, RequestHandlerData requestHandler)
         {
-#if UNITY_EDITOR || UNITY_SERVER
+#if UNITY_SERVER || UNITY_EDITOR
             Debug.Log("HandleRequestSteamUserLogin");
             if (disableDefaultLogin)
             {
@@ -155,7 +153,7 @@ namespace MultiplayerARPG.MMO
             }
 
             long connectionId = requestHandler.ConnectionId;
-            AsyncResponseData<ValidateUserLoginResp> validateUserLoginResp = await DbServiceClient.ValidateUserLoginAsync(new ValidateUserLoginReq()
+            DatabaseApiResult<ValidateUserLoginResp> validateUserLoginResp = await DatabaseClient.ValidateUserLoginAsync(new ValidateUserLoginReq()
             {
                 Username = steamid,
                 Password = steamPass
@@ -179,23 +177,27 @@ namespace MultiplayerARPG.MMO
                 HandleRequestSteamUserRegister(steamid, result, requestHandler);
                 return;
             }
-            if (userPeersByUserId.ContainsKey(userId) || MapContainsUser(userId))
+            if (_userPeersByUserId.ContainsKey(userId) || MapContainsUser(userId))
             {
                 Debug.Log("SteamLogin User Already Logged in");
                 // Kick the user from game
-                if (userPeersByUserId.ContainsKey(userId))
-                    ServerTransport.ServerDisconnect(userPeersByUserId[userId].connectionId);
+                if (_userPeersByUserId.ContainsKey(userId))
+                {
+                    KickClient(_userPeersByUserId[userId].connectionId, UITextKeys.UI_ERROR_ACCOUNT_LOGGED_IN_BY_OTHER);
+                    //No longer being used, atleast in 1.85
+                    //ServerTransport.ServerDisconnect(_userPeersByUserId[userId].connectionId);
+                }
                 //TODO: ENABLE WHEN UPDATE TO 1.77
-                //ClusterServer.KickUser(userId);
+                ClusterServer.KickUser(userId, UITextKeys.UI_ERROR_ACCOUNT_LOGGED_IN_BY_OTHER);
+                RemoveUserPeerByUserId(userId, out _);
                 result.InvokeError(new ResponseSteamAuthLoginMessage()
                 {
                     message = UITextKeys.UI_ERROR_ALREADY_LOGGED_IN,
-                    response = LanguageManager.GetText(UITextKeys.UI_ERROR_ALREADY_LOGGED_IN.ToString()),
                 });
                 return;
             }
 
-            AsyncResponseData<GetUserUnbanTimeResp> unbanTimeResp = await DbServiceClient.GetUserUnbanTimeAsync(new GetUserUnbanTimeReq()
+            DatabaseApiResult<GetUserUnbanTimeResp> unbanTimeResp = await DatabaseClient.GetUserUnbanTimeAsync(new GetUserUnbanTimeReq()
             {
                 UserId = userId
             });
@@ -224,10 +226,10 @@ namespace MultiplayerARPG.MMO
             userPeerInfo.connectionId = connectionId;
             userPeerInfo.userId = userId;
             userPeerInfo.accessToken = accessToken = Regex.Replace(System.Convert.ToBase64String(System.Guid.NewGuid().ToByteArray()), "[/+=]", "");
-            userPeersByUserId[userId] = userPeerInfo;
-            userPeers[connectionId] = userPeerInfo;
+            _userPeersByUserId[userId] = userPeerInfo;
+            _userPeers[connectionId] = userPeerInfo;
             Debug.Log("HandleRequestSteamUserLogin: " + userId + " " + connectionId + " " + accessToken + " " + userPeerInfo.accessToken);
-            AsyncResponseData<EmptyMessage> updateAccessTokenResp = await DbServiceClient.UpdateAccessTokenAsync(new UpdateAccessTokenReq()
+            DatabaseApiResult updateAccessTokenResp = await DatabaseClient.UpdateAccessTokenAsync(new UpdateAccessTokenReq()
             {
                 UserId = userId,
                 AccessToken = accessToken
@@ -274,7 +276,7 @@ namespace MultiplayerARPG.MMO
             string username = steamid.Trim();
             string password = steamPass;
             string email = "";
-            if (!NameValidating.ValidateUsername(username))
+            if (!NameExtensions.IsValidUsername(username))
             {
                 result.InvokeError(new ResponseSteamAuthLoginMessage()
                 {
@@ -286,7 +288,7 @@ namespace MultiplayerARPG.MMO
             //
             //RequireEmail code deleted
             //
-            AsyncResponseData<FindUsernameResp> findUsernameResp = await DbServiceClient.FindUsernameAsync(new FindUsernameReq()
+            DatabaseApiResult<FindUsernameResp> findUsernameResp = await DatabaseClient.FindUsernameAsync(new FindUsernameReq()
             {
                 Username = username
             });
@@ -313,7 +315,7 @@ namespace MultiplayerARPG.MMO
             //
             //Removed Username and Password length and validation checks
             //
-            AsyncResponseData<EmptyMessage> createResp = await DbServiceClient.CreateUserLoginAsync(new CreateUserLoginReq()
+            DatabaseApiResult createResp = await DatabaseClient.CreateUserLoginAsync(new CreateUserLoginReq()
             {
                 Username = username,
                 Password = password,

@@ -54,6 +54,12 @@ namespace MultiplayerARPG.MMO
             }
         }
 
+        private void OnDisable()
+        {
+            Debug.Log("SteamAuth: Exiting SteamWorks");
+            Steamworks.SteamClient.Shutdown();
+        }
+
         /// <summary>
         /// Sends AuthTicket GET call to Steam
         /// </summary>
