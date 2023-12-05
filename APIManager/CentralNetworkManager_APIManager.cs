@@ -7,7 +7,7 @@ using System;
 using MultiplayerARPG.MMO;
 using LiteNetLibManager;
 using System.IO;
-using MiniJSON;
+using MultiplayerARPG.MMO.MiniJSON;
 
 namespace MultiplayerARPG.MMO
 {
