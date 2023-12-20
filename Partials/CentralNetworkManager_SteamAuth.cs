@@ -113,6 +113,7 @@ namespace MultiplayerARPG.MMO
             string message = "";
             string steamid = request.username;
             string ticket = request.password;
+            NameExtensions.overrideUsernameValidating = steamCustomNameValidation;
             //string email = request.email;
             Debug.Log("Pre API call");
             callSteamLogin(steamid, ticket, result, requestHandler);
@@ -129,6 +130,7 @@ namespace MultiplayerARPG.MMO
             string message = "";
             string email = request.username;
             string password = request.password;
+            NameExtensions.overrideUsernameValidating = steamCustomNameValidation;
             //string email = request.email;
             Debug.Log("Pre API call");
             //callSteamRegister(email, password, result);
