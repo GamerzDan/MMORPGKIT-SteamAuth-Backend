@@ -1,3 +1,4 @@
+** FOR MMORPGKIT v1.88+ ALWAYS MAKE SURE TO DO A DEDICATED SERVER BUILD DUE TO UNITY_SERVER DEFINES **
 
 # MMORPGKIT-SteamAuth-Backend
 Use Steam as a Authentication (login/register) backend for [MMORPGKIT](https://assetstore.unity.com/packages/templates/systems/mmorpg-kit-2d-3d-survival-110188) for Unity.
